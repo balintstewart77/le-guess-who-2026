@@ -4,6 +4,7 @@ An unofficial one-page timetable for [Le Guess Who? 2026](https://leguesswho.com
 
 - Tap a set to highlight everything that overlaps it. You also get links to the artist page and directions.
 - Use ☆ to add a set to **My plan**. The plan is saved in your browser, and starred sets that overlap are flagged.
+- **Share my plan** (in the My plan panel) makes a link with your starred sets. Anyone who opens it sees your picks marked with your initials on the grid. They can copy them into their own plan, which also works for moving your plan to your phone.
 - **Map** shows the venues in use that day. They're numbered to match the column headers.
 - **Talks, film & art** adds the daytime programme: Sound & Culture Summit, film, exhibitions and U?.
 

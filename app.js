@@ -66,11 +66,48 @@
     set(k, v) { try { localStorage.setItem("lgw26:" + k, JSON.stringify(v)); } catch { /* private mode etc. */ } },
   };
   const stars = new Set(store.get("stars", []).filter((id) => byId.has(id)));
+
+  // ---------- shared plans ----------
+  // Each set gets a short stable code (FNV-1a hash of its id) so a plan fits in a URL.
+  const codeOf = (id) => {
+    let h = 0x811c9dc5;
+    for (const ch of id) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0).toString(36);
+  };
+  const byCode = new Map(allSets.map((x) => [codeOf(x.id), x.id]));
+  if (byCode.size !== allSets.length) console.warn("Set code collision — shared links may be off");
+
+  const FRIEND_COLORS = ["#2a8fbf", "#8a5cd6", "#2f9a5f", "#c0449f", "#c98112", "#d9476b"];
+  const friends = {};   // name -> Set of set ids
+  for (const [name, ids] of Object.entries(store.get("friends", {}))) {
+    const valid = ids.filter((id) => byId.has(id));
+    if (valid.length) friends[name] = new Set(valid);
+  }
+  const saveFriends = () => store.set("friends", Object.fromEntries(Object.entries(friends).map(([n, s]) => [n, [...s]])));
+  const friendColor = (name) => FRIEND_COLORS[Object.keys(friends).indexOf(name) % FRIEND_COLORS.length];
+  const friendsWith = (id) => Object.keys(friends).filter((n) => friends[n].has(id));
+  const initials = (name) => name.split(/\s+/).map((w) => [...w][0] || "").join("").slice(0, 2).toUpperCase();
+  let myName = store.get("myName", "");
+
+  let incoming = null;   // a plan opened from a shared link, announced once the page is drawn
+  {
+    const params = new URLSearchParams(location.search);
+    if (params.has("plan")) {
+      const ids = (params.get("plan") || "").split(".").map((c) => byCode.get(c)).filter(Boolean);
+      const name = (params.get("by") || "").trim().slice(0, 30) || "Friend";
+      if (ids.length) {
+        friends[name] = new Set(ids);
+        saveFriends();
+        incoming = { name, count: ids.length };
+      }
+      history.replaceState(null, "", location.pathname + location.hash);
+    }
+  }
   const state = {
     dayIdx: 0,
     showExtra: store.get("showExtra", false),
     showMap: store.get("showMap", window.innerWidth > 760),
-    showPlan: store.get("showPlan", false),
+    showPlan: !!incoming || store.get("showPlan", false),
     selected: null,
   };
 
@@ -217,6 +254,10 @@
       b.classList.toggle("starclash", starred && daysStars.some((y) => y !== x && overlaps(x, y)));
       b.classList.toggle("sel", !!sel && x === sel);
       b.classList.toggle("overlap", !!sel && x !== sel && overlaps(x, sel));
+      b.querySelector(".fr")?.remove();
+      const going = friendsWith(x.id);
+      if (going.length) b.append(el("span", { class: "fr" },
+        going.map((n) => el("i", { style: `background:${friendColor(n)}`, title: `In ${n}'s plan` }, initials(n)))));
     }
     const overlay = $("#overlay");
     overlay.querySelector(".band")?.remove();
@@ -261,6 +302,8 @@
         el("b", {}, `${x.day.short} ${fmt(x.s)}–${fmt(x.e)}`), ` (${x.e - x.s} min) · `,
         el("b", {}, v.name), x.stage.name ? ` ${x.stage.name}` : "",
         x.project ? ` · ${x.project}` : ""),
+      friendsWith(x.id).length ? el("p", { class: "meta going" }, "Also in: ",
+        friendsWith(x.id).map((n) => el("span", { style: `color:${friendColor(n)}` }, `${n}'s plan`)).flatMap((s, i) => i ? [", ", s] : [s])) : "",
       el("div", { class: "actions" },
         el("button", { class: "starBtn" + (on ? " on" : ""), onclick: () => toggleStar(x.id) }, on ? "★ In my plan" : "☆ Add to my plan"),
         x.slug ? el("a", { href: LINEUP_URL + x.slug, target: "_blank", rel: "noopener" }, "Artist info ↗") : null,
@@ -292,8 +335,28 @@
     const mine = [...stars].map((id) => byId.get(id)).filter((x) => x.day === d).sort((a, b) => a.s - b.s);
     const otherDays = days.filter((dd) => dd !== d)
       .map((dd) => [dd, [...stars].filter((id) => byId.get(id).day === dd).length]).filter(([, n]) => n);
+    const setLine = (x, warn) => el("li", { onclick: () => { select(x.id); scrollToSet(x.id); } },
+      el("span", { class: "t" }, `${fmt(x.s)}–${fmt(x.e)}`),
+      el("span", {}, x.name, " ", el("span", { class: "v" }, `· ${VENUES[x.stage.venue].name}${x.stage.name ? " " + x.stage.name : ""}`)),
+      warn || null);
+    const friendBlocks = Object.keys(friends).map((n) => {
+      const theirs = [...friends[n]].map((id) => byId.get(id)).filter((x) => x.day === d).sort((a, b) => a.s - b.s);
+      return el("div", { class: "friend" },
+        el("div", { class: "friendHead" },
+          el("i", { class: "dot", style: `background:${friendColor(n)}` }, initials(n)),
+          el("b", {}, `${n}'s plan`), el("span", { class: "v" }, ` · ${theirs.length} today, ${friends[n].size} in total`),
+          el("button", { class: "chip small", onclick: () => copyFriend(n) }, "Copy all to mine"),
+          el("button", { class: "chip small", onclick: () => removeFriend(n) }, "Remove")),
+        theirs.length ? el("ul", {}, theirs.map((x) => setLine(x))) : null);
+    });
     panel.replaceChildren(
-      el("h2", {}, `My plan · ${d.long}`),
+      el("div", { class: "planHead" },
+        el("h2", {}, `My plan · ${d.long}`),
+        el("input", {
+          class: "nameInput", type: "text", maxlength: "30", placeholder: "Your name", value: myName, "aria-label": "Your name, shown to friends",
+          oninput: (e) => { myName = e.target.value.trim(); store.set("myName", myName); },
+        }),
+        el("button", { class: "chip shareBtn", onclick: sharePlan, disabled: stars.size === 0 }, "Share my plan")),
       mine.length
         ? el("ul", {}, mine.map((x) => {
             const clash = mine.filter((y) => y !== x && overlaps(x, y));
@@ -303,7 +366,41 @@
               clash.length ? el("span", { class: "warn" }, `⚠ overlaps ${clash.map((y) => y.name).join(", ")}`) : null);
           }))
         : el("p", { class: "empty" }, "Nothing starred for this day yet — tap a set, then “Add to my plan”."),
-      otherDays.length ? el("p", { class: "empty" }, "Also starred: ", otherDays.map(([dd, n]) => `${dd.short} (${n})`).join(", ")) : "");
+      otherDays.length ? el("p", { class: "empty" }, "Also starred: ", otherDays.map(([dd, n]) => `${dd.short} (${n})`).join(", ")) : "",
+      ...friendBlocks);
+  }
+
+  async function sharePlan() {
+    if (!stars.size) return;
+    const params = new URLSearchParams({ plan: [...stars].map(codeOf).join(".") });
+    if (myName) params.set("by", myName);
+    const url = `${location.origin}${location.pathname}?${params}${location.hash}`;
+    const title = `${myName ? myName + "'s" : "My"} Le Guess Who? plan`;
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      try { await navigator.share({ title, url }); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    try { await navigator.clipboard.writeText(url); toast("Link copied — send it to your friends"); }
+    catch { window.prompt("Copy this link:", url); }
+  }
+  function copyFriend(n) {
+    for (const id of friends[n]) stars.add(id);
+    store.set("stars", [...stars]);
+    toast(`Copied ${friends[n].size} sets from ${n}'s plan into yours`);
+    applyMarks(); renderSheet(); renderPlan(); syncToggles();
+  }
+  function removeFriend(n) {
+    delete friends[n];
+    saveFriends();
+    applyMarks(); renderSheet(); renderPlan();
+  }
+  let toastTimer;
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, 4000);
   }
 
   // ---------- map ----------
@@ -382,4 +479,5 @@
     }
   }
   renderAll(true);
+  if (incoming) toast(`Opened ${incoming.name}'s plan (${incoming.count} sets) — their picks are marked ${initials(incoming.name)}`);
 })();
