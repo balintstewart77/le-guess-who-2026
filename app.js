@@ -66,6 +66,7 @@
     set(k, v) { try { localStorage.setItem("lgw26:" + k, JSON.stringify(v)); } catch { /* private mode etc. */ } },
   };
   const stars = new Set(store.get("stars", []).filter((id) => byId.has(id)));
+  const isNarrow = () => matchMedia("(max-width: 760px)").matches;
 
   // ---------- shared plans ----------
   // Each set gets a short stable code (FNV-1a hash of its id) so a plan fits in a URL.
@@ -107,7 +108,8 @@
     dayIdx: 0,
     showExtra: store.get("showExtra", false),
     showMap: store.get("showMap", window.innerWidth > 760),
-    showPlan: !!incoming || store.get("showPlan", false),
+    // on phones the plan is a drawer over the grid, so don't reopen it on every visit
+    showPlan: !!incoming || (!isNarrow() && store.get("showPlan", false)),
     selected: null,
   };
 
@@ -169,7 +171,12 @@
   }
   $("#toggleMap").onclick = () => { state.showMap = !state.showMap; store.set("showMap", state.showMap); syncToggles(); if (state.showMap) renderMap(); measure(); };
   $("#toggleExtra").onclick = () => { state.showExtra = !state.showExtra; store.set("showExtra", state.showExtra); renderAll(false); };
-  $("#togglePlan").onclick = () => { state.showPlan = !state.showPlan; store.set("showPlan", state.showPlan); syncToggles(); renderPlan(); measure(); };
+  function setPlanOpen(open) {
+    state.showPlan = open;
+    if (!isNarrow()) store.set("showPlan", open);
+    syncToggles(); renderPlan(); measure();
+  }
+  $("#togglePlan").onclick = () => setPlanOpen(!state.showPlan);
 
   function renderLegend(stages) {
     const projects = [...new Set(stages.flatMap((st) => st.sets.map((x) => x.project)).filter(Boolean))]
@@ -335,7 +342,12 @@
     const mine = [...stars].map((id) => byId.get(id)).filter((x) => x.day === d).sort((a, b) => a.s - b.s);
     const otherDays = days.filter((dd) => dd !== d)
       .map((dd) => [dd, [...stars].filter((id) => byId.get(id).day === dd).length]).filter(([, n]) => n);
-    const setLine = (x, warn) => el("li", { onclick: () => { select(x.id); scrollToSet(x.id); } },
+    const setLine = (x, warn) => el("li", {
+      onclick: () => {
+        if (isNarrow()) setPlanOpen(false);   // the drawer covers the grid on phones
+        select(x.id); scrollToSet(x.id);
+      },
+    },
       el("span", { class: "t" }, `${fmt(x.s)}–${fmt(x.e)}`),
       el("span", {}, x.name, " ", el("span", { class: "v" }, `· ${VENUES[x.stage.venue].name}${x.stage.name ? " " + x.stage.name : ""}`)),
       warn || null);
@@ -350,8 +362,10 @@
         theirs.length ? el("ul", {}, theirs.map((x) => setLine(x))) : null);
     });
     panel.replaceChildren(
-      el("div", { class: "planHead" },
+      el("div", { class: "planTitle" },
         el("h2", {}, `My plan · ${d.long}`),
+        el("button", { class: "close", "aria-label": "Close plan", onclick: () => setPlanOpen(false) }, "×")),
+      el("div", { class: "planHead" },
         el("input", {
           class: "nameInput", type: "text", maxlength: "30", placeholder: "Your name", value: myName, "aria-label": "Your name, shown to friends",
           oninput: (e) => { myName = e.target.value.trim(); store.set("myName", myName); },
@@ -360,10 +374,7 @@
       mine.length
         ? el("ul", {}, mine.map((x) => {
             const clash = mine.filter((y) => y !== x && overlaps(x, y));
-            return el("li", { onclick: () => { select(x.id); scrollToSet(x.id); } },
-              el("span", { class: "t" }, `${fmt(x.s)}–${fmt(x.e)}`),
-              el("span", {}, x.name, " ", el("span", { class: "v" }, `· ${VENUES[x.stage.venue].name}${x.stage.name ? " " + x.stage.name : ""}`)),
-              clash.length ? el("span", { class: "warn" }, `⚠ overlaps ${clash.map((y) => y.name).join(", ")}`) : null);
+            return setLine(x, clash.length ? el("span", { class: "warn" }, `⚠ overlaps ${clash.map((y) => y.name).join(", ")}`) : null);
           }))
         : el("p", { class: "empty" }, "Nothing starred for this day yet — tap a set, then “Add to my plan”."),
       otherDays.length ? el("p", { class: "empty" }, "Also starred: ", otherDays.map(([dd, n]) => `${dd.short} (${n})`).join(", ")) : "",

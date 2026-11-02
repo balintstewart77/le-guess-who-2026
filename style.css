@@ -130,24 +130,42 @@ h1 span { color: var(--accent); }
 .leaflet-popup-content a { color: var(--accent); }
 
 /* ---------- plan ---------- */
-.planPanel { flex: none; max-height: 40dvh; overflow: auto; padding: 10px 16px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.planPanel h2 { font: 600 15px Inter, sans-serif; margin: 0 0 6px; }
-.planPanel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.planPanel li { display: flex; gap: 10px; align-items: baseline; cursor: pointer; }
-.planPanel .t { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 92px; }
+/* grid and plan sit side by side; on phones the plan becomes a drawer over the grid */
+.bodyRow { flex: 1 1 auto; min-height: 0; display: flex; }
+.planPanel {
+  flex: none; width: 340px; overflow: auto; padding: 10px 14px 16px;
+  border-left: 1px solid var(--line-strong); background: var(--surface);
+}
+.planPanel[hidden] { display: none; }
+@media (max-width: 760px) {
+  .planPanel {
+    position: fixed; z-index: 65; top: 0; right: 0; bottom: 0;
+    width: min(360px, 90vw); box-shadow: var(--shadow);
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+}
+.planTitle { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.planTitle h2 { flex: 1; font: 700 16px/1.3 "Space Grotesk", Inter, sans-serif; margin: 2px 0 0; }
+.planTitle .close { border: 0; background: transparent; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted); width: 30px; height: 30px; flex: none; }
+.planPanel ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.planPanel li {
+  display: grid; grid-template-columns: 82px 1fr; column-gap: 8px; cursor: pointer;
+  padding: 3px 6px; margin: 0 -6px; border-radius: 6px;
+}
+.planPanel li:hover { background: var(--surface-2); }
+.planPanel .t { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
 .planPanel .v { color: var(--muted); font-size: 12px; }
-.planPanel .warn { color: var(--clash); font-size: 12px; font-weight: 600; }
-.planPanel .empty { color: var(--muted); margin: 0; }
-.planHead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-.planHead h2 { margin: 0 auto 0 0; }
+.planPanel .warn { grid-column: 2; color: var(--clash); font-size: 12px; font-weight: 600; }
+.planPanel .empty { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+.planHead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .nameInput {
   font: inherit; font-size: 13px; color: var(--text); background: var(--bg);
-  border: 1px solid var(--line-strong); border-radius: 8px; padding: 4px 8px; width: 130px;
+  border: 1px solid var(--line-strong); border-radius: 8px; padding: 4px 8px; flex: 1; min-width: 0;
 }
 .shareBtn { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .shareBtn:disabled { opacity: .45; cursor: default; }
 .chip.small { font-size: 12px; padding: 2px 8px; }
-.friend { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.friend { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
 .friendHead { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
 .friendHead .chip:first-of-type { margin-left: auto; }
 .dot, .fr i {
@@ -169,7 +187,7 @@ h1 span { color: var(--accent); }
 
 /* ---------- grid ---------- */
 .gridWrap {
-  flex: 1 1 auto; min-height: 0;
+  flex: 1 1 auto; min-height: 0; min-width: 0;
   overflow: auto;
   position: relative;
   overscroll-behavior: contain;
