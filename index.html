@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>LGW26 Clash Finder</title>
+  <meta name="description" content="Le Guess Who? 2026 timetable by day and venue, with a venue map and clash finder.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e8542f'/%3E%3Ctext x='16' y='23' font-family='sans-serif' font-size='20' font-weight='700' text-anchor='middle' fill='white'%3E%3F%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="top">
+    <div class="titlebar">
+      <h1>Le Guess Who? <span>2026</span></h1>
+      <p class="sub">Utrecht · 5–8 Nov · tap a set to see what clashes, ☆ to plan</p>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <div class="toolbar">
+      <button class="chip" id="toggleMap" aria-pressed="true">Map</button>
+      <button class="chip" id="toggleExtra" aria-pressed="false">Talks, film &amp; art</button>
+      <button class="chip" id="togglePlan" aria-pressed="false">My plan <b id="planCount">0</b></button>
+      <span class="legend" id="legend"></span>
+    </div>
+  </header>
+
+  <section class="mapPanel" id="mapPanel">
+    <div id="map" aria-label="Venue map"></div>
+    <ol class="venueList" id="venueList"></ol>
+  </section>
+
+  <section class="planPanel" id="planPanel" hidden></section>
+
+  <main class="gridWrap" id="gridWrap">
+    <div class="grid" id="grid"></div>
+  </main>
+
+  <aside class="sheet" id="sheet" hidden aria-live="polite"></aside>
+
+  <footer class="foot">
+    Timetable copied from <a href="https://leguesswho.com/timetable" target="_blank" rel="noopener">leguesswho.com/timetable</a> on 2 Nov 2026 — times can change, so check the official app on the day.
+    Unofficial fan page. Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>.
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
